@@ -139,7 +139,6 @@
             let hasError = false;
 
             try {
-                // Tratando espaços e acentos convertendo para URL segura (URL Encode)
                 const urlEstoque = 'ESTOQUE%20PATOS%20-%20ATUALIZA%C3%87%C3%83O%20DI%C3%81RIA.xlsx';
                 const responseEstoque = await fetch(urlEstoque);
                 if(responseEstoque.ok) {
@@ -246,7 +245,10 @@
         function processEstoqueFull(workbook) {
             let sheetFatName = workbook.SheetNames.find(s => s.toUpperCase() === 'FATURAMENTO');
             let sheetItemName = workbook.SheetNames.find(s => s.toUpperCase() === 'ITEM ESTOQUE');
-            globalPaletesFatPAS_ContagemLinhas = 0; materiaisPBT_Faturamento = []; 
+            
+            // Não zera as variáveis da expedição para manter a persistência entre carregamentos
+            globalPaletesFatPAS_ContagemLinhas = 0; 
+            materiaisPBT_Faturamento = []; 
 
             if (sheetFatName && sheetItemName) {
                 let fatData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetFatName], {header: 1});
@@ -316,7 +318,8 @@
             rows.forEach((r, idx) => {
                 if(!r || r.length === 0) return;
                 for (let j = 0; j < r.length; j++) {
-                    let txt = (r[j] || '').toString().toUpperCase().replace(/\s+/g, ' ').trim();
+                    // Remoção completa de espaços para garantir a busca independente de formatação do Excel
+                    let txt = (r[j] || '').toString().toUpperCase().replace(/\s+/g, '');
                     if (txt.includes('DISPONIVELCLIENTE') || txt.includes('DISPONÍVELCLIENTE')) {
                         globalDispI8_PAS = Number(r[j+1]) || 0; 
                         if (rows[idx + 1] && rows[idx + 1][j+1]) globalDispI9_PBT = Number(rows[idx + 1][j+1]) || 0;
@@ -378,13 +381,16 @@
             document.getElementById('table-faturamento').innerHTML = htmlFat;
             document.getElementById('footer-faturamento').innerHTML = `<div class="flex flex-col md:flex-row justify-between items-center px-4 font-bold text-valorem-dark space-y-2 md:space-y-0"><span>Totais Consolidados <span class="text-xs font-normal">(em sacos)</span>:</span><div class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm"><span>Faturados: <span class="text-valorem-green text-base md:text-lg">${formatNumber(tFat)}</span></span><span>Expedição: <span class="text-valorem-green text-base md:text-lg">${formatNumber(tExp)}</span></span><span>OK P/ Faturar: <span class="text-valorem-green text-base md:text-lg">${formatNumber(tOkFat)}</span></span><span>A Faturar: <span class="text-valorem-green text-base md:text-lg">${formatNumber(tAFat)}</span></span></div></div>`;
             renderChart(pLabels, pData);
+            
             calcularProgramacao();
         }
 
         function processExpedicao(rawSheet) {
             const jsonComDatas = XLSX.utils.sheet_to_json(rawSheet, {raw: true, cellDates: true});
             let map = {};
-            globalPaletesExpPAS_Futuro = 0; materiaisExpedicaoFutura = []; 
+            
+            globalPaletesExpPAS_Futuro = 0; 
+            materiaisExpedicaoFutura = []; 
 
             let proximoDia = new Date(); proximoDia.setHours(0,0,0,0);
             proximoDia.setDate(proximoDia.getDate() + 1);
@@ -429,7 +435,9 @@
             todasAsCargas = Object.keys(map).map(k => ({ ship: k, ...map[k] }));
             todasAsCargas.sort((a, b) => a.dataObj - b.dataObj);
             document.getElementById('btnToggleCargas').classList.remove('hidden');
-            renderTabelaCargas(); calcularProgramacao();
+            renderTabelaCargas(); 
+            
+            calcularProgramacao();
         }
 
         function renderTabelaCargas() {
