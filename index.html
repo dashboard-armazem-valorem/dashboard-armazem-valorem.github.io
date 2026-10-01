@@ -49,7 +49,6 @@
         </div>
     </nav>
 
-    <!-- Barra de Status de Carregamento Automático -->
     <div id="status-bar" class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-2 text-center text-sm font-semibold shadow-sm transition-all duration-500">
         🔄 Sincronizando dados com os servidores...
     </div>
@@ -74,11 +73,7 @@
                 </div>
                 <div id="footer-visao-geral" class="mt-6 p-4 bg-valorem-light rounded border border-valorem-green/30 text-valorem-dark"></div>
             </div>
-
-            <div class="card">
-                <h2 class="text-lg font-bold text-valorem-green mb-4">Distribuição de Paletes no Armazém</h2>
-                <div class="relative h-64 w-full"><canvas id="chartPaletes"></canvas></div>
-            </div>
+            <div class="card"><h2 class="text-lg font-bold text-valorem-green mb-4">Distribuição de Paletes no Armazém</h2><div class="relative h-64 w-full"><canvas id="chartPaletes"></canvas></div></div>
         </div>
 
         <div class="card overflow-x-auto border-t-4 flex flex-col justify-between" style="border-top-color: #004d24;">
@@ -98,26 +93,13 @@
                 <span class="text-[10px] md:text-xs text-blue-700 bg-blue-100 px-2 py-1 rounded font-semibold border border-blue-200 shadow-sm hidden md:inline-block">Cruzamento de Lotes via Paletes</span>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-blue-50 p-4 rounded border border-blue-200 text-center shadow-sm flex flex-col justify-center">
-                    <p class="text-xs font-bold text-blue-700 uppercase tracking-wide">Sacos (PAS)</p>
-                    <p class="text-3xl font-extrabold text-blue-900 mt-1" id="prog-pas-val">0</p>
-                </div>
-                <div class="bg-blue-50 p-4 rounded border border-blue-200 text-center shadow-sm flex flex-col justify-center">
-                    <p class="text-xs font-bold text-blue-700 uppercase tracking-wide">Bags (PBT)</p>
-                    <p class="text-3xl font-extrabold text-blue-900 mt-1 mb-1" id="prog-pbt-val">0</p>
-                    <p class="text-xs text-gray-500 font-medium" id="prog-pbt-sacos"></p>
-                </div>
-                <div class="bg-valorem-light p-4 rounded border border-valorem-green/30 text-center shadow-sm flex flex-col justify-center">
-                    <p class="text-xs font-bold text-valorem-green uppercase tracking-wide">Cargas Projetadas</p>
-                    <p class="text-5xl font-extrabold text-valorem-dark mt-1" id="prog-cargas-total">0</p>
-                </div>
+                <div class="bg-blue-50 p-4 rounded border border-blue-200 text-center shadow-sm flex flex-col justify-center"><p class="text-xs font-bold text-blue-700 uppercase tracking-wide">Sacos (PAS)</p><p class="text-3xl font-extrabold text-blue-900 mt-1" id="prog-pas-val">0</p></div>
+                <div class="bg-blue-50 p-4 rounded border border-blue-200 text-center shadow-sm flex flex-col justify-center"><p class="text-xs font-bold text-blue-700 uppercase tracking-wide">Bags (PBT)</p><p class="text-3xl font-extrabold text-blue-900 mt-1 mb-1" id="prog-pbt-val">0</p><p class="text-xs text-gray-500 font-medium" id="prog-pbt-sacos"></p></div>
+                <div class="bg-valorem-light p-4 rounded border border-valorem-green/30 text-center shadow-sm flex flex-col justify-center"><p class="text-xs font-bold text-valorem-green uppercase tracking-wide">Cargas Projetadas</p><p class="text-5xl font-extrabold text-valorem-dark mt-1" id="prog-cargas-total">0</p></div>
             </div>
-            
             <div class="mt-4 p-3 bg-white rounded border border-gray-200 flex flex-col md:flex-row justify-between items-center text-sm">
                 <div id="prog-detalhes" class="text-gray-700 font-medium text-center md:text-left mb-3 md:mb-0">Aguardando arquivos para cálculo estatístico (21 paletes).</div>
-                <div class="text-valorem-dark font-bold bg-gray-50 px-4 py-2 rounded border border-gray-200 shadow-sm">
-                    Total Físico <span class="hidden md:inline">(Cliente)</span>: <span class="text-valorem-green text-lg ml-1" id="prog-total-sacos">0</span> <span class="text-xs text-gray-500">sacos</span>
-                </div>
+                <div class="text-valorem-dark font-bold bg-gray-50 px-4 py-2 rounded border border-gray-200 shadow-sm">Total Físico <span class="hidden md:inline">(Cliente)</span>: <span class="text-valorem-green text-lg ml-1" id="prog-total-sacos">0</span> <span class="text-xs text-gray-500">sacos</span></div>
             </div>
         </div>
 
@@ -131,7 +113,6 @@
                 <tbody id="table-expedicao"><tr><td colspan="7" class="p-4 text-center text-gray-500">Aguardando planilha de Cargas...</td></tr></tbody>
             </table>
         </div>
-
     </div>
 
     <script>
@@ -139,15 +120,10 @@
         let mostrarPassadas = false;
         let chartPaletesInstance = null;
 
-        // Memória para Matemática
-        let globalDispI8_PAS = 0; 
-        let globalDispI9_PBT = 0; 
-        let globalPaletesFatPAS_ContagemLinhas = 0; 
-        let globalPaletesExpPAS_Futuro = 0; 
-        let materiaisPBT_Faturamento = []; 
-        let materiaisExpedicaoFutura = []; 
+        let globalDispI8_PAS = 0, globalDispI9_PBT = 0; 
+        let globalPaletesFatPAS_ContagemLinhas = 0, globalPaletesExpPAS_Futuro = 0; 
+        let materiaisPBT_Faturamento = [], materiaisExpedicaoFutura = []; 
 
-        // Botões Nativos
         document.getElementById('fileEstoque').addEventListener('change', (e) => loadFileFromInput(e, 'ESTOQUE'));
         document.getElementById('fileExpedicao').addEventListener('change', (e) => loadFileFromInput(e, 'EXPEDICAO'));
         
@@ -158,45 +134,54 @@
             renderTabelaCargas();
         });
 
-        // --- AUTOLOAD DIRETO DO GITHUB ---
         async function autoLoadFiles() {
             const btnStatus = document.getElementById('status-bar');
+            let hasError = false;
+
             try {
-                // Nome EXATO dos arquivos que vc vai jogar no GitHub
-                const responseEstoque = await fetch('ESTOQUE PATOS - ATUALIZAÇÃO DIÁRIA.xlsx');
+                // Tratando espaços e acentos convertendo para URL segura (URL Encode)
+                const urlEstoque = 'ESTOQUE%20PATOS%20-%20ATUALIZA%C3%87%C3%83O%20DI%C3%81RIA.xlsx';
+                const responseEstoque = await fetch(urlEstoque);
                 if(responseEstoque.ok) {
                     const data = await responseEstoque.arrayBuffer();
                     const workbook = XLSX.read(data, {type: 'array', cellDates: true});
                     processEstoqueFull(workbook);
-                } else { throw new Error("Planilha Estoque não encontrada no servidor."); }
+                } else {
+                    console.warn("Estoque não localizado no servidor (HTTP " + responseEstoque.status + ")");
+                    hasError = true;
+                }
+            } catch(e) { hasError = true; console.error(e); }
 
-                const responseExp = await fetch('Padrão de envio de email de expedição.xlsx');
+            try {
+                const urlExpedicao = 'Padr%C3%A3o%20de%20envio%20de%20email%20de%20expedi%C3%A7%C3%A3o.xlsx';
+                const responseExp = await fetch(urlExpedicao);
                 if(responseExp.ok) {
                     const data = await responseExp.arrayBuffer();
                     const workbook = XLSX.read(data, {type: 'array', cellDates: true});
                     let sheetName = workbook.SheetNames.find(s => s.toUpperCase() === '_SHIPMENTS');
                     if(sheetName) processExpedicao(workbook.Sheets[sheetName]);
-                } else { throw new Error("Planilha Expedição não encontrada no servidor."); }
+                } else {
+                    console.warn("Expedição não localizada no servidor (HTTP " + responseExp.status + ")");
+                    hasError = true;
+                }
+            } catch(e) { hasError = true; console.error(e); }
 
+            if(hasError) {
+                btnStatus.classList.replace('bg-blue-100', 'bg-yellow-100');
+                btnStatus.classList.replace('border-blue-500', 'border-yellow-500');
+                btnStatus.classList.replace('text-blue-700', 'text-yellow-700');
+                btnStatus.innerHTML = '⚠️ Alguma planilha não foi encontrada no GitHub. Painel operando com dados parciais.';
+            } else {
                 btnStatus.classList.replace('bg-blue-100', 'bg-green-100');
                 btnStatus.classList.replace('border-blue-500', 'border-green-500');
                 btnStatus.classList.replace('text-blue-700', 'text-green-800');
-                btnStatus.innerHTML = '✅ Dados carregados e sincronizados com a última atualização.';
-                setTimeout(() => { btnStatus.style.display = 'none'; }, 5000);
-
-            } catch (error) {
-                btnStatus.classList.replace('bg-blue-100', 'bg-red-100');
-                btnStatus.classList.replace('border-blue-500', 'border-red-500');
-                btnStatus.classList.replace('text-blue-700', 'text-red-700');
-                btnStatus.innerHTML = '⚠️ Erro ao carregar dados do servidor. Importe as planilhas manualmente.';
-                console.error(error);
+                btnStatus.innerHTML = '✅ Dados carregados e sincronizados com sucesso!';
             }
+            setTimeout(() => { btnStatus.style.display = 'none'; }, 5000);
         }
         
-        // Inicia o AutoLoad assim que a tela abre
         window.addEventListener('load', autoLoadFiles);
 
-        // --- IMPORTAÇÃO MANUAL ---
         function loadFileFromInput(e, type) {
             const file = e.target.files[0];
             if (!file) return;
@@ -213,21 +198,16 @@
             reader.readAsArrayBuffer(file);
         }
 
-        // --- CÁLCULO MESTRE DA LÓGICA ESTRITA ---
         function calcularProgramacao() {
             document.getElementById('prog-pas-val').innerText = formatNumber(globalDispI8_PAS);
             document.getElementById('prog-pbt-val').innerText = formatNumber(globalDispI9_PBT);
 
-            let multiplicador = 0;
+            let multiplicador = 50;
             if (materiaisPBT_Faturamento.length === 1) {
-                let mat = materiaisPBT_Faturamento[0];
-                if (mat.includes('3889')) multiplicador = 50;
-                else if (mat.includes('3845')) multiplicador = 40;
+                if (materiaisPBT_Faturamento[0].includes('3845')) multiplicador = 40;
             } else if (materiaisPBT_Faturamento.length > 1 && materiaisExpedicaoFutura.length > 0) {
-                let matExp = materiaisExpedicaoFutura.join(' '); 
-                if (matExp.includes('3889')) multiplicador = 50;
-                else if (matExp.includes('3845')) multiplicador = 40;
-            } else { multiplicador = 50; }
+                if (materiaisExpedicaoFutura.join(' ').includes('3845')) multiplicador = 40;
+            }
 
             let sacosPBTCalculados = 0;
             if(globalDispI9_PBT > 0) {
@@ -235,12 +215,10 @@
                 document.getElementById('prog-pbt-sacos').innerText = `(${formatNumber(sacosPBTCalculados)} sacos)`;
             } else { document.getElementById('prog-pbt-sacos').innerText = ""; }
 
-            let totalSacosFisico = globalDispI8_PAS + sacosPBTCalculados;
-            document.getElementById('prog-total-sacos').innerText = formatNumber(totalSacosFisico);
+            document.getElementById('prog-total-sacos').innerText = formatNumber(globalDispI8_PAS + sacosPBTCalculados);
 
             let cargasPBTFechadas = Math.floor(globalDispI9_PBT / 21);
             let restoPBT_Bags = globalDispI9_PBT % 21;
-
             let paletesDisponiveisPAS = Math.max(0, globalPaletesFatPAS_ContagemLinhas - globalPaletesExpPAS_Futuro);
             let cargasPASFechadas = Math.floor(paletesDisponiveisPAS / 21);
             let restoPAS_Paletes = paletesDisponiveisPAS % 21;
@@ -261,13 +239,8 @@
             if(cargasPASFechadas > 0) detalhesCarga.push(`<span class="font-bold text-valorem-dark">${cargasPASFechadas}</span> carga(s) PAS`);
             if(cargasPBTFechadas > 0) detalhesCarga.push(`<span class="font-bold text-valorem-dark">${cargasPBTFechadas}</span> carga(s) PBT`);
             
-            let htmlDescritivo = detalhesCarga.join(' &nbsp;|&nbsp; ') + msgMista;
-
-            if(totalCargasProgramaveis > 0) document.getElementById('prog-detalhes').innerHTML = htmlDescritivo;
-            else {
-                if(globalPaletesFatPAS_ContagemLinhas === 0) document.getElementById('prog-detalhes').innerHTML = "Importe ambas as planilhas para liberar o cruzamento.";
-                else document.getElementById('prog-detalhes').innerHTML = "Saldo de paletes atual não forma uma carga completa (21 paletes).";
-            }
+            if(totalCargasProgramaveis > 0) document.getElementById('prog-detalhes').innerHTML = detalhesCarga.join(' &nbsp;|&nbsp; ') + msgMista;
+            else document.getElementById('prog-detalhes').innerHTML = (globalPaletesFatPAS_ContagemLinhas === 0) ? "Aguardando planilhas para cruzamento de lotes." : "Saldo atual não forma carga completa.";
         }
 
         function processEstoqueFull(workbook) {
@@ -298,7 +271,7 @@
                         let prod = String(r[cProduto] || '').toUpperCase().trim();
                         if(lote) {
                             if(tipo.includes('PAS')) lotesPAS.add(lote);
-                            if(tipo.includes('PBT') && prod !== '') { if(!materiaisPBT_Faturamento.includes(prod)) materiaisPBT_Faturamento.push(prod); }
+                            if(tipo.includes('PBT') && prod) { if(!materiaisPBT_Faturamento.includes(prod)) materiaisPBT_Faturamento.push(prod); }
                         }
                     });
                 }
@@ -308,16 +281,14 @@
                 for(let i=0; i<Math.min(10, itemData.length); i++) {
                     if(!itemData[i]) continue;
                     for(let j=0; j<itemData[i].length; j++) {
-                        let val = String(itemData[i][j] || '').toUpperCase().trim();
-                        if(val === 'NÚMERO DO LOTE' || val === 'LOTE') cLoteItem = j;
+                        if(String(itemData[i][j] || '').toUpperCase().trim() === 'NÚMERO DO LOTE') cLoteItem = j;
                     }
                     if(cLoteItem !== -1) break;
                 }
                 if(cLoteItem !== -1) {
                     itemData.forEach(r => {
                         if(!r || r.length === 0) return;
-                        let lote = String(r[cLoteItem] || '').trim();
-                        if(lote && lotesPAS.has(lote)) globalPaletesFatPAS_ContagemLinhas++;
+                        if(lotesPAS.has(String(r[cLoteItem] || '').trim())) globalPaletesFatPAS_ContagemLinhas++;
                     });
                 }
             }
@@ -332,36 +303,27 @@
             globalDispI8_PAS = 0; globalDispI9_PBT = 0;
             
             let cL = 1, cQ = 2, cU = 3, cP = 5, cF = 8, cE = 9, cOk = 10, cA = 12; 
-            
             for (let i = 0; i < Math.min(15, rows.length); i++) {
                 if(!rows[i]) continue;
                 for (let j = 0; j < rows[i].length; j++) {
                     let val = (rows[i][j] || '').toString().toUpperCase().trim();
-                    if (val === 'GERAL') cL = j;
-                    if (val === 'QUANTIDADE') cQ = j;
-                    if (val === 'UNIDADE') cU = j;
-                    if (val === 'TOTAL DE PALETES') cP = j;
-                    if (val === 'FATURADOS') cF = j;
-                    if (val === 'EM EXPEDIÇÃO' || val === 'EM EXPEDICAO') cE = j;
-                    if (val === 'OK P/ FATURAR' || val === 'OK PARA FATURAR') cOk = j;
-                    if (val === 'A FATURAR TOTAL') cA = j;
+                    if (val === 'GERAL') cL = j; if (val === 'QUANTIDADE') cQ = j; if (val === 'UNIDADE') cU = j;
+                    if (val === 'TOTAL DE PALETES') cP = j; if (val === 'FATURADOS') cF = j; if (val === 'EM EXPEDIÇÃO') cE = j;
+                    if (val === 'OK P/ FATURAR') cOk = j; if (val === 'A FATURAR TOTAL') cA = j;
                 }
             }
 
             rows.forEach((r, idx) => {
                 if(!r || r.length === 0) return;
-
                 for (let j = 0; j < r.length; j++) {
-                    let celulaTxt = (r[j] || '').toString().toUpperCase().replace(/\s+/g, ' ').trim();
-                    if (celulaTxt.includes('DISPONIVEL CLIENTE') || celulaTxt.includes('DISPONÍVEL CLIENTE')) {
+                    let txt = (r[j] || '').toString().toUpperCase().replace(/\s+/g, ' ').trim();
+                    if (txt.includes('DISPONIVELCLIENTE') || txt.includes('DISPONÍVELCLIENTE')) {
                         globalDispI8_PAS = Number(r[j+1]) || 0; 
-                        let proximaLinha = rows[idx + 1];
-                        if (proximaLinha && proximaLinha[j+1]) globalDispI9_PBT = Number(proximaLinha[j+1]) || 0;
+                        if (rows[idx + 1] && rows[idx + 1][j+1]) globalDispI9_PBT = Number(rows[idx + 1][j+1]) || 0;
                     }
                 }
 
                 let label = r[cL] ? r[cL].toString().toUpperCase().trim() : '';
-
                 if (label.includes('PAS -') || label.includes('PDB -') || label.includes('PBT -') || label.includes('PAB -')) {
                     let sigla = label.substring(0, 3);
                     if (!estoque.find(e => e.sigla === sigla)) {
@@ -370,19 +332,15 @@
                         totalPaletes += Number(pal);
                         if (sigla === 'PAS') pasQtd = Number(qtd);
                         if (sigla === 'PBT') pbtBagsOriginal = Number(qtd);
-                        if (sigla === 'PAS' || sigla === 'PBT') {
-                            faturamento.push({ sigla, nome: r[cL], faturados: Number(r[cF])||0, expedicao: Number(r[cE])||0, ok_faturar: Number(r[cOk])||0, a_faturar: Number(r[cA])||0 });
-                        }
+                        if (sigla === 'PAS' || sigla === 'PBT') faturamento.push({ sigla, nome: r[cL], faturados: Number(r[cF])||0, expedicao: Number(r[cE])||0, ok_faturar: Number(r[cOk])||0, a_faturar: Number(r[cA])||0 });
                     } else {
-                        if(sigla === 'PBT') {
-                            for(let j = 1; j < r.length; j++) { if(typeof r[j] === 'number' && r[j] > 1000) { pbtConvTotal = r[j]; break; } }
-                        }
+                        if(sigla === 'PBT') { for(let j = 1; j < r.length; j++) { if(typeof r[j] === 'number' && r[j] > 1000) { pbtConvTotal = r[j]; break; } } }
                     }
                 }
                 
                 if (label.includes('CAPACIDADE TOTAL')) kpi.capacidade = r[cQ] || 160000;
                 if (label.includes('CARGAS DIA')) kpi.cargas = r[cP] || r[cQ] || r[cU] || 0;
-                if (label.includes('DIAS DE EXPEDIÇÃO') || label.includes('DIAS DE EXPEDICAO')) kpi.dias = r[cP] || r[cQ] || r[cU] || 0;
+                if (label.includes('DIAS DE EXPEDIÇÃO')) kpi.dias = r[cP] || r[cQ] || r[cU] || 0;
                 if (label.includes('TOTAL OCUPADO')) kpi.ocupacao_total = r[cU] || 0; 
             });
 
@@ -394,7 +352,6 @@
 
             let fatorConversaoPBT = (pbtBagsOriginal > 0 && pbtConvTotal > 0) ? (pbtConvTotal / pbtBagsOriginal) : 0;
             let htmlEstoque = '', pData = [], pLabels = [];
-            
             estoque.forEach(item => {
                 let dQtd = formatNumber(item.qtd);
                 if(item.sigla === 'PBT' && pbtConvTotal > 0) dQtd = `<span class="font-bold text-base">${formatNumber(item.qtd)}</span> <span class="text-valorem-dark text-xs ml-1 bg-valorem-light px-2 py-1 rounded">(${formatNumber(pbtConvTotal)} sacos)</span>`;
@@ -408,7 +365,6 @@
             faturamento.forEach(item => {
                 let txtFat = formatNumber(item.faturados), txtExp = formatNumber(item.expedicao), txtOkFat = formatNumber(item.ok_faturar), txtAFat = formatNumber(item.a_faturar);
                 let vFat = item.faturados, vExp = item.expedicao, vOk = item.ok_faturar, vAF = item.a_faturar;
-
                 if(item.sigla === 'PBT' && fatorConversaoPBT > 0) {
                     vFat = Math.round(vFat * fatorConversaoPBT); vExp = Math.round(vExp * fatorConversaoPBT); vOk = Math.round(vOk * fatorConversaoPBT); vAF = Math.round(vAF * fatorConversaoPBT);
                     if(item.faturados > 0) txtFat = `<span class="font-bold">${formatNumber(item.faturados)}</span> <span class="text-xs text-gray-500 ml-1">(${formatNumber(vFat)} sc)</span>`;
@@ -430,15 +386,15 @@
             let map = {};
             globalPaletesExpPAS_Futuro = 0; materiaisExpedicaoFutura = []; 
 
-            let dataReferencia = new Date(); dataReferencia.setHours(0,0,0,0);
-            let proximoDia = new Date(dataReferencia); proximoDia.setDate(proximoDia.getDate() + 1);
+            let proximoDia = new Date(); proximoDia.setHours(0,0,0,0);
+            proximoDia.setDate(proximoDia.getDate() + 1);
             
             jsonComDatas.forEach((row) => {
                 let ship = row['Shipment'];
                 if(!ship) return;
                 
                 let dataOriginal = row['Data']; let dataObj = new Date();
-                if(dataOriginal instanceof Date) { dataObj = new Date(dataOriginal.getFullYear(), dataOriginal.getMonth(), dataOriginal.getDate()); }
+                if(dataOriginal instanceof Date) dataObj = new Date(dataOriginal.getFullYear(), dataOriginal.getMonth(), dataOriginal.getDate());
                 else if(typeof dataOriginal === 'string') {
                     let partes = dataOriginal.split(' ')[0].split('-'); 
                     if(partes.length === 3) dataObj = new Date(partes[0], partes[1]-1, partes[2]);
@@ -456,14 +412,13 @@
 
                 if(!map[ship]) {
                     let d = dataObj.getDate().toString().padStart(2, '0'); let m = (dataObj.getMonth()+1).toString().padStart(2, '0');
-                    let displayDate = `${d}/${m}/${dataObj.getFullYear()}`;
                     let clienteStr = (row['Descr. Cliente'] || '').toString().toUpperCase();
                     let eCorteva = (clienteStr.includes('CORTEVA') || clienteStr.includes('CONFRIO') || clienteStr.includes('INTERLOG'));
                     let motStr = (row['Motorista'] || '').toString().trim().split(' ');
                     let nomeMot = motStr[0] || ''; if (motStr.length > 1) nomeMot += ' ' + motStr[1];
-                    
+
                     map[ship] = {
-                        dataObj: dataObj, dataStr: displayDate, cidade: (row['Cidade'] || '-') + ' / ' + (row['Estado'] || '-'),
+                        dataObj: dataObj, dataStr: `${d}/${m}/${dataObj.getFullYear()}`, cidade: (row['Cidade'] || '-') + ' / ' + (row['Estado'] || '-'),
                         qtd: 0, paletes: 0, transportadora: row['Transportadora'] || '-', clienteOriginal: clienteStr, eCorteva: eCorteva,
                         motoristaPlacas: nomeMot ? `${nomeMot} / ${row['Placa Cavalo'] || '-'} / ${row['Placa Carreta'] || '-'}` : '-'
                     };
@@ -486,7 +441,7 @@
                 
                 let cssLinha = ehPassada ? "bg-gray-100 opacity-60 text-gray-500" : "hover:bg-valorem-light";
                 let badge = ehPassada ? `<span class="bg-gray-300 text-gray-700 text-[10px] px-2 py-0.5 rounded ml-2 uppercase font-bold">Concluída</span>` : `<span class="bg-valorem-green text-white text-[10px] px-2 py-0.5 rounded ml-2 uppercase font-bold shadow-sm">Agendada</span>`;
-                let renderCliente = c.eCorteva ? `<img src="Corteva_logo.png" alt="Corteva" title="Corteva" class="h-4 inline-block ml-2 align-middle" onerror="this.style.display='none'">` : `<span class="text-[10px] text-gray-500 ml-2 font-bold uppercase truncate max-w-[80px] inline-block align-middle">${c.clienteOriginal}</span>`;
+                let renderCliente = c.eCorteva ? `<img src="Corteva_logo.png" class="h-4 inline-block ml-2 align-middle" onerror="this.style.display='none'">` : `<span class="text-[10px] text-gray-500 ml-2 font-bold uppercase truncate max-w-[80px] inline-block align-middle">${c.clienteOriginal}</span>`;
                 let motLabel = (ehPassada || ehHoje) ? c.motoristaPlacas : `<span class="text-gray-400 text-xs italic">Aguardando...</span>`;
 
                 html += `<tr class="border-b transition ${cssLinha}"><td class="p-3 font-medium whitespace-nowrap">${c.dataStr} ${badge} ${renderCliente}</td><td class="p-3 font-bold">${c.ship}</td><td class="p-3 truncate max-w-[150px]">${c.cidade}</td><td class="p-3">${formatNumber(c.qtd)}</td><td class="p-3 font-bold ${ehPassada ? 'text-gray-500' : 'text-valorem-green'}">${formatNumber(c.paletes)}</td><td class="p-3 truncate max-w-[120px]">${c.transportadora}</td><td class="p-3 text-xs whitespace-nowrap">${motLabel}</td></tr>`;
@@ -499,7 +454,7 @@
         function renderChart(labels, data) {
             const ctx = document.getElementById('chartPaletes').getContext('2d');
             if(chartPaletesInstance) chartPaletesInstance.destroy();
-            chartPaletesInstance = new Chart(ctx, { type: 'bar', data: { labels: labels, datasets: [{ data: data, backgroundColor: '#007336', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+            chartPaletesInstance = new Chart(ctx, { type: 'bar', data: { labels: labels, datasets: [{ label: 'Qtd. Paletes', data: data, backgroundColor: '#007336', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } });
         }
     </script>
 </body>
