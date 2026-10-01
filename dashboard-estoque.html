@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valorem - Dashboard de Estoque e Expedição</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        valorem: {
+                            green: '#007336',
+                            beige: '#EBE5CD',
+                            dark: '#004d24',
+                            light: '#e6f1eb'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #f3f4f6; }
+        .card { 
+            background-color: white; 
+            border-radius: 0.5rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+            padding: 1.5rem; 
+            border-top: 4px solid #007336; 
+        }
+        .table-header { background-color: #007336; color: #EBE5CD; }
+        .table-row:nth-child(even) { background-color: #e6f1eb; }
+        .table-row:hover { background-color: #d1e5d9; }
+    </style>
+</head>
+<body class="text-gray-800 font-sans pb-10">
+    
+    <nav class="bg-valorem-green p-4 shadow-md flex flex-col lg:flex-row justify-between items-center space-y-4 lg:space-y-0">
+        <div class="flex items-center space-x-4">
+            <img src="logo.png" alt="Valorem" class="h-10 object-contain" onerror="this.onerror=null; this.outerHTML='<div class=\'bg-valorem-beige text-valorem-green font-extrabold text-xl px-3 py-1 rounded shadow-sm\'>VALOREM</div>';">
+            <h1 class="text-valorem-beige text-xl font-bold hidden md:block">Resumo de Estoque - Patos de Minas</h1>
+        </div>
+        <div class="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-3">
+            <label for="fileEstoque" class="bg-valorem-beige text-valorem-dark font-bold py-2 px-4 rounded cursor-pointer hover:bg-white transition text-sm shadow flex items-center justify-center">
+                <span class="mr-2">📦</span> Importar Estoque
+            </label>
+            <input type="file" id="fileEstoque" class="hidden" accept=".xlsx, .xls">
+            
+            <label for="fileExpedicao" class="bg-valorem-beige text-valorem-dark font-bold py-2 px-4 rounded cursor-pointer hover:bg-white transition text-sm shadow flex items-center justify-center">
+                <span class="mr-2">🚚</span> Importar Cargas
+            </label>
+            <input type="file" id="fileExpedicao" class="hidden" accept=".xlsx, .xls">
+        </div>
+    </nav>
+
+    <div class="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
+        
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <div class="card">
+                <h3 class="text-xs md:text-sm font-semibold text-gray-500 uppercase tracking-wide">Capacidade Armazém</h3>
+                <p class="text-2xl md:text-3xl font-bold text-valorem-dark mt-2" id="kpi-capacidade">0</p>
+            </div>
+            <div class="card">
+                <h3 class="text-xs md:text-sm font-semibold text-gray-500 uppercase tracking-wide">Ocupação (Geral)</h3>
+                <p class="text-2xl md:text-3xl font-bold text-valorem-dark mt-2" id="kpi-ocupacao">0%</p>
+            </div>
+            <div class="card">
+                <h3 class="text-xs md:text-sm font-semibold text-gray-500 uppercase tracking-wide">Cargas do Dia</h3>
+                <p class="text-2xl md:text-3xl font-bold text-valorem-dark mt-2" id="kpi-cargas">0</p>
+            </div>
+            <div class="card">
+                <h3 class="text-xs md:text-sm font-semibold text-gray-500 uppercase tracking-wide">Dias de Expedição</h3>
+                <p class="text-2xl md:text-3xl font-bold text-valorem-dark mt-2" id="kpi-dias">0</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="card overflow-x-auto flex flex-col justify-between">
+                <div>
+                    <h2 class="text-lg font-bold text-valorem-green mb-4">Visão Geral de Produtos</h2>
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="table-header">
+                                <th class="p-3 rounded-tl whitespace-nowrap">Produto</th>
+                                <th class="p-3">Qtd</th>
+                                <th class="p-3">Unidade</th>
+                                <th class="p-3 rounded-tr">Paletes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-estoque">
+                            <tr><td colspan="4" class="p-4 text-center text-gray-500">Aguardando planilha de Estoque...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="footer-visao-geral" class="mt-6 p-4 bg-valorem-light rounded border border-valorem-green/30 text-valorem-dark">
+                    <p class="text-center text-sm font-semibold">Importe os dados para ver o consolidado.</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="text-lg font-bold text-valorem-green mb-4">Distribuição de Paletes no Armazém</h2>
+                <div class="relative h-64 w-full">
+                    <canvas id="chartPaletes"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="card overflow-x-auto border-t-4 flex flex-col justify-between" style="border-top-color: #004d24;">
+            <div>
+                <h2 class="text-xl font-bold text-valorem-dark mb-4 flex items-center">
+                    <span class="mr-2">💰</span> Módulo de Faturamento
+                </h2>
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-valorem-dark text-valorem-beige">
+                            <th class="p-3 rounded-tl whitespace-nowrap">Produto (Acabado)</th>
+                            <th class="p-3 text-right">Faturados</th>
+                            <th class="p-3 text-right">Em Expedição</th>
+                            <th class="p-3 text-right">OK P/ Faturar</th>
+                            <th class="p-3 text-right rounded-tr">A Faturar Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-faturamento">
+                        <tr><td colspan="5" class="p-4 text-center text-gray-500">Aguardando planilha de Estoque...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div id="footer-faturamento" class="mt-4 p-3 bg-valorem-light rounded border border-valorem-dark/20 text-valorem-dark">
+                 <p class="text-center text-sm font-semibold">Importe os dados para ver o consolidado.</p>
+            </div>
+        </div>
+
+        <!-- MÓDULO PROGRAMAÇÃO -->
+        <div class="card overflow-x-auto border-t-4 flex flex-col justify-between" style="border-top-color: #2b6cb0;">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-blue-900 flex items-center">
+                    <span class="mr-2">📋</span> Disponível para Programação
+                </h2>
+                <span class="text-[10px] md:text-xs text-blue-700 bg-blue-100 px-2 py-1 rounded font-semibold border border-blue-200 shadow-sm hidden md:inline-block">Cruzamento de Lotes via Paletes</span>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-blue-50 p-4 rounded border border-blue-200 text-center shadow-sm flex flex-col justify-center">
+                    <p class="text-xs font-bold text-blue-700 uppercase tracking-wide">Sacos (PAS)</p>
+                    <p class="text-3xl font-extrabold text-blue-900 mt-1" id="prog-pas-val">0</p>
+                </div>
+                <div class="bg-blue-50 p-4 rounded border border-blue-200 text-center shadow-sm flex flex-col justify-center">
+                    <p class="text-xs font-bold text-blue-700 uppercase tracking-wide">Bags (PBT)</p>
+                    <p class="text-3xl font-extrabold text-blue-900 mt-1 mb-1" id="prog-pbt-val">0</p>
+                    <p class="text-xs text-gray-500 font-medium" id="prog-pbt-sacos"></p>
+                </div>
+                <div class="bg-valorem-light p-4 rounded border border-valorem-green/30 text-center shadow-sm flex flex-col justify-center">
+                    <p class="text-xs font-bold text-valorem-green uppercase tracking-wide">Cargas Projetadas</p>
+                    <p class="text-5xl font-extrabold text-valorem-dark mt-1" id="prog-cargas-total">0</p>
+                </div>
+            </div>
+            
+            <!-- Rodapé Disponível Programação -->
+            <div class="mt-4 p-3 bg-white rounded border border-gray-200 flex flex-col md:flex-row justify-between items-center text-sm">
+                <div id="prog-detalhes" class="text-gray-700 font-medium text-center md:text-left mb-3 md:mb-0">
+                    Importe ambas as planilhas para análise de paletes (21 paletes).
+                </div>
+                <div class="text-valorem-dark font-bold bg-gray-50 px-4 py-2 rounded border border-gray-200 shadow-sm">
+                    Total Físico <span class="hidden md:inline">(Cliente)</span>: 
+                    <span class="text-valorem-green text-lg ml-1" id="prog-total-sacos">0</span> 
+                    <span class="text-xs text-gray-500">sacos</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card overflow-x-auto border-t-4 flex flex-col" style="border-top-color: #8ecfb0;">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 space-y-3 md:space-y-0">
+                <h2 class="text-xl font-bold text-valorem-green flex items-center">
+                    <span class="mr-2">🚚</span> Expedições Agendadas (Cargas)
+                </h2>
+                <button id="btnToggleCargas" class="bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm font-bold hover:bg-gray-300 transition shadow hidden">
+                    Histórico: Mostrar Cargas Anteriores
+                </button>
+            </div>
+            
+            <table class="w-full text-left border-collapse text-sm">
+                <thead>
+                    <tr class="table-header">
+                        <th class="p-3 rounded-tl whitespace-nowrap">Data / Cliente</th>
+                        <th class="p-3">Carga</th>
+                        <th class="p-3">Cidade / UF</th>
+                        <th class="p-3">Qtd</th>
+                        <th class="p-3">Paletes</th>
+                        <th class="p-3">Transportadora</th>
+                        <th class="p-3 rounded-tr">Motorista e Placas</th>
+                    </tr>
+                </thead>
+                <tbody id="table-expedicao">
+                    <tr><td colspan="7" class="p-4 text-center text-gray-500">Aguardando planilha de Cargas (Padrão de envio)...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        let todasAsCargas = [];
+        let mostrarPassadas = false;
+        let chartPaletesInstance = null;
+
+        // Memória para Matemática
+        let globalDispI8_PAS = 0; 
+        let globalDispI9_PBT = 0; 
+        
+        let globalPaletesFatPAS_ContagemLinhas = 0; 
+        let globalPaletesExpPAS_Futuro = 0; 
+        
+        let materiaisPBT_Faturamento = []; 
+        let materiaisExpedicaoFutura = []; 
+
+        document.getElementById('fileEstoque').addEventListener('change', (e) => handleFile(e, 'ESTOQUE'));
+        document.getElementById('fileExpedicao').addEventListener('change', (e) => handleFile(e, 'EXPEDICAO'));
+
+        document.getElementById('btnToggleCargas').addEventListener('click', function() {
+            mostrarPassadas = !mostrarPassadas;
+            this.innerText = mostrarPassadas ? "Ocultar Cargas Anteriores" : "Histórico: Mostrar Cargas Anteriores";
+            this.className = mostrarPassadas 
+                ? "bg-valorem-dark text-white px-4 py-2 rounded text-sm font-bold hover:bg-green-900 transition shadow"
+                : "bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm font-bold hover:bg-gray-300 transition shadow";
+            renderTabelaCargas();
+        });
+
+        function handleFile(e, type) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, {type: 'array', cellDates: true});
+                
+                if (type === 'ESTOQUE') {
+                    processEstoqueFull(workbook);
+                } else if (type === 'EXPEDICAO') {
+                    const sheetName = workbook.SheetNames.find(s => s.toUpperCase() === '_SHIPMENTS');
+                    if(!sheetName) return alert("Aba '_Shipments' não encontrada.");
+                    processExpedicao(workbook.Sheets[sheetName]);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // --- CÁLCULO MESTRE DA LÓGICA ESTRITA ---
+        function calcularProgramacao() {
+            
+            document.getElementById('prog-pas-val').innerText = formatNumber(globalDispI8_PAS);
+            document.getElementById('prog-pbt-val').innerText = formatNumber(globalDispI9_PBT);
+
+            // Multiplicador de Sacos PBT
+            let multiplicador = 0;
+            if (materiaisPBT_Faturamento.length === 1) {
+                let mat = materiaisPBT_Faturamento[0];
+                if (mat.includes('3889')) multiplicador = 50;
+                else if (mat.includes('3845')) multiplicador = 40;
+            } else if (materiaisPBT_Faturamento.length > 1 && materiaisExpedicaoFutura.length > 0) {
+                let matExp = materiaisExpedicaoFutura.join(' '); 
+                if (matExp.includes('3889')) multiplicador = 50;
+                else if (matExp.includes('3845')) multiplicador = 40;
+            } else {
+                multiplicador = 50;
+            }
+
+            let sacosPBTCalculados = 0;
+            if(globalDispI9_PBT > 0) {
+                sacosPBTCalculados = globalDispI9_PBT * multiplicador;
+                document.getElementById('prog-pbt-sacos').innerText = `(${formatNumber(sacosPBTCalculados)} sacos)`;
+            } else {
+                document.getElementById('prog-pbt-sacos').innerText = "";
+            }
+
+            // Somatório de Total Físico Cliente (PAS Resumo + PBT Convertido)
+            let totalSacosFisico = globalDispI8_PAS + sacosPBTCalculados;
+            document.getElementById('prog-total-sacos').innerText = formatNumber(totalSacosFisico);
+
+            // Matemática Absoluta (Apenas Cargas Fechadas / Mistas sob regra)
+            let cargasPBTFechadas = Math.floor(globalDispI9_PBT / 21);
+            let restoPBT_Bags = globalDispI9_PBT % 21;
+
+            // PAS: Paletes Reais Contados - Expedições de Amanhã pra Frente
+            let paletesDisponiveisPAS = Math.max(0, globalPaletesFatPAS_ContagemLinhas - globalPaletesExpPAS_Futuro);
+            
+            let cargasPASFechadas = Math.floor(paletesDisponiveisPAS / 21);
+            let restoPAS_Paletes = paletesDisponiveisPAS % 21;
+
+            let cargasMistas = 0;
+            let msgMista = "";
+            
+            // Regra Mista Restrita: Só junta se sobrar de 17 a 20 paletes de PAS
+            if (restoPAS_Paletes >= 17 && restoPBT_Bags > 0) {
+                let espacosSobraPAS = 21 - restoPAS_Paletes; // Espaços vazios no caminhão
+                if (restoPBT_Bags >= espacosSobraPAS) {
+                    cargasMistas = 1;
+                    msgMista = ` | <span class="font-bold text-orange-600">1</span> carga(s) mista(s) (${restoPAS_Paletes} pal PAS + ${espacosSobraPAS} bags PBT)`;
+                }
+            }
+
+            let totalCargasProgramaveis = cargasPASFechadas + cargasPBTFechadas + cargasMistas;
+            document.getElementById('prog-cargas-total').innerText = totalCargasProgramaveis;
+
+            let detalhesCarga = [];
+            if(cargasPASFechadas > 0) detalhesCarga.push(`<span class="font-bold text-valorem-dark">${cargasPASFechadas}</span> carga(s) PAS`);
+            if(cargasPBTFechadas > 0) detalhesCarga.push(`<span class="font-bold text-valorem-dark">${cargasPBTFechadas}</span> carga(s) PBT`);
+            
+            let htmlDescritivo = detalhesCarga.join(' &nbsp;|&nbsp; ') + msgMista;
+
+            if(totalCargasProgramaveis > 0) {
+                document.getElementById('prog-detalhes').innerHTML = htmlDescritivo;
+            } else {
+                if(globalPaletesFatPAS_ContagemLinhas === 0) {
+                    document.getElementById('prog-detalhes').innerHTML = "Importe ambas as planilhas para liberar o cruzamento.";
+                } else {
+                    document.getElementById('prog-detalhes').innerHTML = "Saldo de paletes atual não forma uma carga completa (21 paletes).";
+                }
+            }
+        }
+
+        function processEstoqueFull(workbook) {
+            
+            let sheetFatName = workbook.SheetNames.find(s => s.toUpperCase() === 'FATURAMENTO');
+            let sheetItemName = workbook.SheetNames.find(s => s.toUpperCase() === 'ITEM ESTOQUE');
+            
+            globalPaletesFatPAS_ContagemLinhas = 0;
+            materiaisPBT_Faturamento = []; 
+
+            if (sheetFatName && sheetItemName) {
+                let fatData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetFatName], {header: 1});
+                let cLote = -1, cTipo = -1, cProduto = -1;
+                
+                for(let i=0; i<Math.min(10, fatData.length); i++) {
+                    if(!fatData[i]) continue;
+                    for(let j=0; j<fatData[i].length; j++) {
+                        let val = String(fatData[i][j] || '').toUpperCase().trim();
+                        if(val === 'NÚMERO LOTE' || val === 'LOTE') cLote = j;
+                        if(val === 'TIPO DE PRODUTO') cTipo = j;
+                        if(val === 'PRODUTO') cProduto = j;
+                    }
+                    if(cLote !== -1) break;
+                }
+                
+                let lotesPAS = new Set();
+                if(cLote !== -1) {
+                    fatData.forEach(r => {
+                        if(!r || r.length === 0) return;
+                        let tipo = String(r[cTipo] || '').toUpperCase();
+                        let lote = String(r[cLote] || '').trim();
+                        let prod = String(r[cProduto] || '').toUpperCase().trim();
+                        
+                        if(lote) {
+                            if(tipo.includes('PAS')) lotesPAS.add(lote);
+                            if(tipo.includes('PBT') && prod !== '') {
+                                if(!materiaisPBT_Faturamento.includes(prod)) materiaisPBT_Faturamento.push(prod);
+                            }
+                        }
+                    });
+                }
+                
+                let itemData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetItemName], {header: 1});
+                let cLoteItem = -1;
+                for(let i=0; i<Math.min(10, itemData.length); i++) {
+                    if(!itemData[i]) continue;
+                    for(let j=0; j<itemData[i].length; j++) {
+                        let val = String(itemData[i][j] || '').toUpperCase().trim();
+                        if(val === 'NÚMERO DO LOTE' || val === 'LOTE') cLoteItem = j;
+                    }
+                    if(cLoteItem !== -1) break;
+                }
+                if(cLoteItem !== -1) {
+                    itemData.forEach(r => {
+                        if(!r || r.length === 0) return;
+                        let lote = String(r[cLoteItem] || '').trim();
+                        if(lote && lotesPAS.has(lote)) globalPaletesFatPAS_ContagemLinhas++;
+                    });
+                }
+            }
+
+            let sheetResumoName = workbook.SheetNames.find(s => s.toUpperCase() === 'RESUMO');
+            if(!sheetResumoName) return alert("Aba 'RESUMO' não encontrada.");
+            
+            let rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetResumoName], {header: 1});
+            
+            let kpi = { capacidade: 160000, cargas: 0, dias: 0, ocupacao_total: 0 };
+            let estoque = [];
+            let faturamento = [];
+            let totalPaletes = 0, pasQtd = 0, pbtConvTotal = 0, pbtBagsOriginal = 0;
+            
+            globalDispI8_PAS = 0;
+            globalDispI9_PBT = 0;
+            
+            let cL = 1, cQ = 2, cU = 3, cP = 5, cF = 8, cE = 9, cOk = 10, cA = 12; 
+            
+            for (let i = 0; i < Math.min(15, rows.length); i++) {
+                if(!rows[i]) continue;
+                for (let j = 0; j < rows[i].length; j++) {
+                    let val = (rows[i][j] || '').toString().toUpperCase().trim();
+                    if (val === 'GERAL') cL = j;
+                    if (val === 'QUANTIDADE') cQ = j;
+                    if (val === 'UNIDADE') cU = j;
+                    if (val === 'TOTAL DE PALETES') cP = j;
+                    if (val === 'FATURADOS') cF = j;
+                    if (val === 'EM EXPEDIÇÃO' || val === 'EM EXPEDICAO') cE = j;
+                    if (val === 'OK P/ FATURAR' || val === 'OK PARA FATURAR') cOk = j;
+                    if (val === 'A FATURAR TOTAL') cA = j;
+                }
+            }
+
+            rows.forEach((r, idx) => {
+                if(!r || r.length === 0) return;
+
+                // Captura EXATA de I8 e I9
+                for (let j = 0; j < r.length; j++) {
+                    let celulaTxt = (r[j] || '').toString().toUpperCase().replace(/\s+/g, ' ').trim();
+                    if (celulaTxt.includes('DISPONIVEL CLIENTE') || celulaTxt.includes('DISPONÍVEL CLIENTE')) {
+                        globalDispI8_PAS = Number(r[j+1]) || 0; 
+                        let proximaLinha = rows[idx + 1];
+                        if (proximaLinha && proximaLinha[j+1]) {
+                            globalDispI9_PBT = Number(proximaLinha[j+1]) || 0;
+                        }
+                    }
+                }
+
+                let label = r[cL] ? r[cL].toString().toUpperCase().trim() : '';
+
+                if (label.includes('PAS -') || label.includes('PDB -') || label.includes('PBT -') || label.includes('PAB -')) {
+                    let sigla = label.substring(0, 3);
+                    
+                    if (!estoque.find(e => e.sigla === sigla)) {
+                        let qtd = r[cQ] || 0;
+                        let pal = r[cP] || 0;
+                        estoque.push({ sigla, nome: r[cL], qtd, und: r[cU] || '-', paletes: pal });
+                        
+                        totalPaletes += Number(pal);
+                        if (sigla === 'PAS') pasQtd = Number(qtd);
+                        if (sigla === 'PBT') pbtBagsOriginal = Number(qtd);
+                        
+                        if (sigla === 'PAS' || sigla === 'PBT') {
+                            faturamento.push({ 
+                                sigla, nome: r[cL], 
+                                faturados: Number(r[cF])||0, expedicao: Number(r[cE])||0, 
+                                ok_faturar: Number(r[cOk])||0, a_faturar: Number(r[cA])||0 
+                            });
+                        }
+                    } else {
+                        if(sigla === 'PBT') {
+                            for(let j = 1; j < r.length; j++) {
+                                if(typeof r[j] === 'number' && r[j] > 1000) { pbtConvTotal = r[j]; break; }
+                            }
+                        }
+                    }
+                }
+                
+                if (label.includes('CAPACIDADE TOTAL')) kpi.capacidade = r[cQ] || 160000;
+                if (label.includes('CARGAS DIA')) kpi.cargas = r[cP] || r[cQ] || r[cU] || 0;
+                if (label.includes('DIAS DE EXPEDIÇÃO') || label.includes('DIAS DE EXPEDICAO')) kpi.dias = r[cP] || r[cQ] || r[cU] || 0;
+                if (label.includes('TOTAL OCUPADO')) kpi.ocupacao_total = r[cU] || 0; 
+            });
+
+            document.getElementById('kpi-capacidade').innerText = formatNumber(kpi.capacidade);
+            document.getElementById('kpi-cargas').innerText = formatNumber(kpi.cargas);
+            document.getElementById('kpi-dias').innerText = formatNumber(kpi.dias);
+            let valOc = parseFloat(kpi.ocupacao_total);
+            document.getElementById('kpi-ocupacao').innerText = (!isNaN(valOc)) ? (valOc > 0 && valOc <= 1 ? (valOc * 100).toFixed(2).replace('.',',') + '%' : valOc.toFixed(2).replace('.',',') + '%') : '0%';
+
+            let fatorConversaoPBT = (pbtBagsOriginal > 0 && pbtConvTotal > 0) ? (pbtConvTotal / pbtBagsOriginal) : 0;
+            let htmlEstoque = '', pData = [], pLabels = [];
+            
+            estoque.forEach(item => {
+                let dQtd = formatNumber(item.qtd);
+                if(item.sigla === 'PBT' && pbtConvTotal > 0) {
+                    dQtd = `<span class="font-bold text-base">${formatNumber(item.qtd)}</span> <span class="text-valorem-dark text-xs ml-1 bg-valorem-light px-2 py-1 rounded">(${formatNumber(pbtConvTotal)} sacos)</span>`;
+                }
+
+                htmlEstoque += `
+                    <tr class="table-row border-b">
+                        <td class="p-3 font-semibold text-gray-700">${item.nome}</td>
+                        <td class="p-3">${dQtd}</td>
+                        <td class="p-3">${item.und}</td>
+                        <td class="p-3 font-bold text-valorem-green">${formatNumber(item.paletes)}</td>
+                    </tr>`;
+                pLabels.push(item.sigla);
+                pData.push(item.paletes);
+            });
+            document.getElementById('table-estoque').innerHTML = htmlEstoque;
+            document.getElementById('footer-visao-geral').innerHTML = `
+                <div class="flex flex-col md:flex-row justify-between items-center px-2">
+                    <div class="text-base mb-2 md:mb-0 text-gray-700">Total de Sacos <span class="text-xs">(PAS + PBT Convertido)</span>: <span class="text-valorem-green font-extrabold ml-1 text-lg">${formatNumber(pasQtd + pbtConvTotal)}</span></div>
+                    <div class="text-base text-gray-700">Total de Paletes: <span class="text-valorem-green font-extrabold ml-1 text-lg">${formatNumber(totalPaletes)}</span></div>
+                </div>
+            `;
+
+            let htmlFat = '', tFat = 0, tExp = 0, tOkFat = 0, tAFat = 0;
+            faturamento.forEach(item => {
+                let txtFat = formatNumber(item.faturados), txtExp = formatNumber(item.expedicao);
+                let txtOkFat = formatNumber(item.ok_faturar), txtAFat = formatNumber(item.a_faturar);
+                let vFat = item.faturados, vExp = item.expedicao, vOk = item.ok_faturar, vAF = item.a_faturar;
+
+                if(item.sigla === 'PBT' && fatorConversaoPBT > 0) {
+                    let cvFat = Math.round(vFat * fatorConversaoPBT), cvExp = Math.round(vExp * fatorConversaoPBT);
+                    let cvOkFat = Math.round(vOk * fatorConversaoPBT), cvAFat = Math.round(vAF * fatorConversaoPBT);
+                    vFat = cvFat; vExp = cvExp; vOk = cvOkFat; vAF = cvAFat;
+                    
+                    if(item.faturados > 0) txtFat = `<span class="font-bold">${formatNumber(item.faturados)}</span> <span class="text-xs text-gray-500 ml-1">(${formatNumber(cvFat)} sc)</span>`;
+                    if(item.expedicao > 0) txtExp = `<span class="font-bold">${formatNumber(item.expedicao)}</span> <span class="text-xs text-gray-500 ml-1">(${formatNumber(cvExp)} sc)</span>`;
+                    if(item.ok_faturar > 0) txtOkFat = `<span class="font-bold">${formatNumber(item.ok_faturar)}</span> <span class="text-xs text-gray-500 ml-1">(${formatNumber(cvOkFat)} sc)</span>`;
+                    if(item.a_faturar > 0) txtAFat = `<span class="font-bold text-valorem-green">${formatNumber(item.a_faturar)}</span> <span class="text-xs text-gray-500 ml-1">(${formatNumber(cvAFat)} sc)</span>`;
+                } else if(item.sigla === 'PBT') {
+                    txtFat += ` (BAGS)`; txtExp += ` (BAGS)`; txtOkFat += ` (BAGS)`; txtAFat += ` (BAGS)`;
+                }
+                tFat += vFat; tExp += vExp; tOkFat += vOk; tAFat += vAF;
+
+                htmlFat += `
+                    <tr class="table-row border-b hover:bg-valorem-light transition">
+                        <td class="p-3 font-semibold text-gray-700">${item.nome}</td>
+                        <td class="p-3 text-right">${txtFat}</td>
+                        <td class="p-3 text-right">${txtExp}</td>
+                        <td class="p-3 text-right">${txtOkFat}</td>
+                        <td class="p-3 text-right font-bold text-valorem-green">${txtAFat}</td>
+                    </tr>`;
+            });
+            document.getElementById('table-faturamento').innerHTML = htmlFat;
+            document.getElementById('footer-faturamento').innerHTML = `
+                <div class="flex flex-col md:flex-row justify-between items-center px-4 font-bold text-valorem-dark space-y-2 md:space-y-0">
+                    <span>Totais Consolidados <span class="text-xs font-normal">(em sacos)</span>:</span>
+                    <div class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm">
+                        <span>Faturados: <span class="text-valorem-green text-base md:text-lg">${formatNumber(tFat)}</span></span>
+                        <span>Expedição: <span class="text-valorem-green text-base md:text-lg">${formatNumber(tExp)}</span></span>
+                        <span>OK P/ Faturar: <span class="text-valorem-green text-base md:text-lg">${formatNumber(tOkFat)}</span></span>
+                        <span>A Faturar: <span class="text-valorem-green text-base md:text-lg">${formatNumber(tAFat)}</span></span>
+                    </div>
+                </div>
+            `;
+            renderChart(pLabels, pData);
+            
+            calcularProgramacao();
+        }
+
+        function processExpedicao(rawSheet) {
+            const jsonComDatas = XLSX.utils.sheet_to_json(rawSheet, {raw: true, cellDates: true});
+            let map = {};
+            
+            globalPaletesExpPAS_Futuro = 0; 
+            materiaisExpedicaoFutura = []; 
+
+            let dataReferencia = new Date();
+            dataReferencia.setHours(0,0,0,0);
+            
+            // "data do próximo dia pra frente"
+            let proximoDia = new Date(dataReferencia);
+            proximoDia.setDate(proximoDia.getDate() + 1);
+            
+            jsonComDatas.forEach((row) => {
+                let ship = row['Shipment'];
+                if(!ship) return;
+                
+                let dataOriginal = row['Data'];
+                let dataObj = new Date();
+                
+                if(dataOriginal instanceof Date) {
+                    dataObj = new Date(dataOriginal.getFullYear(), dataOriginal.getMonth(), dataOriginal.getDate());
+                } else if(typeof dataOriginal === 'string') {
+                    let partes = dataOriginal.split(' ')[0].split('-'); 
+                    if(partes.length === 3) dataObj = new Date(partes[0], partes[1]-1, partes[2]);
+                }
+                dataObj.setHours(0,0,0,0);
+                
+                let paletesRow = Number(String(row['Qtde. Total de Paletes'] || '0').replace(/,/g, ''));
+                let materialLinha = String(row['Material'] || '').toUpperCase();
+
+                if (dataObj.getTime() >= proximoDia.getTime()) {
+                    let emb = (row['Embalagem'] || '').toString().toUpperCase();
+                    if(emb.includes('SACO')) globalPaletesExpPAS_Futuro += paletesRow;
+                    
+                    if(materialLinha && !materiaisExpedicaoFutura.includes(materialLinha)) {
+                        materiaisExpedicaoFutura.push(materialLinha);
+                    }
+                }
+
+                if(!map[ship]) {
+                    let d = dataObj.getDate().toString().padStart(2, '0');
+                    let m = (dataObj.getMonth()+1).toString().padStart(2, '0');
+                    let displayDate = `${d}/${m}/${dataObj.getFullYear()}`;
+                    
+                    let clienteStr = (row['Descr. Cliente'] || '').toString().toUpperCase();
+                    let eCorteva = (clienteStr.includes('CORTEVA') || clienteStr.includes('CONFRIO') || clienteStr.includes('INTERLOG'));
+                    
+                    let motStr = (row['Motorista'] || '').toString().trim().split(' ');
+                    let nomeMot = motStr[0] || '';
+                    if (motStr.length > 1) nomeMot += ' ' + motStr[1];
+                    let pCavalo = row['Placa Cavalo'] || '-';
+                    let pCarreta = row['Placa Carreta'] || '-';
+
+                    map[ship] = {
+                        dataObj: dataObj, dataStr: displayDate,
+                        cidade: (row['Cidade'] || '-') + ' / ' + (row['Estado'] || '-'),
+                        qtd: 0, paletes: 0, transportadora: row['Transportadora'] || '-',
+                        clienteOriginal: clienteStr, eCorteva: eCorteva,
+                        motoristaPlacas: nomeMot ? `${nomeMot} / ${pCavalo} / ${pCarreta}` : '-'
+                    };
+                }
+                
+                map[ship].qtd += (Number(String(row['Qtd.']).replace(/,/g, '')) || 0);
+                map[ship].paletes += paletesRow;
+            });
+
+            todasAsCargas = Object.keys(map).map(k => ({ ship: k, ...map[k] }));
+            todasAsCargas.sort((a, b) => a.dataObj - b.dataObj);
+            
+            document.getElementById('btnToggleCargas').classList.remove('hidden');
+            renderTabelaCargas();
+            
+            calcularProgramacao();
+        }
+
+        function renderTabelaCargas() {
+            let html = '';
+            let hoje = new Date();
+            hoje.setHours(0,0,0,0);
+            let contagemExibida = 0;
+
+            todasAsCargas.forEach(c => {
+                let ehPassada = c.dataObj < hoje;
+                let ehHoje = c.dataObj.getTime() === hoje.getTime();
+                
+                if(ehPassada && !mostrarPassadas) return;
+                
+                contagemExibida++;
+                
+                let cssLinha = ehPassada ? "bg-gray-100 opacity-60 text-gray-500" : "hover:bg-valorem-light";
+                let badge = ehPassada 
+                    ? `<span class="bg-gray-300 text-gray-700 text-[10px] px-2 py-0.5 rounded ml-2 uppercase font-bold">Concluída</span>` 
+                    : `<span class="bg-valorem-green text-white text-[10px] px-2 py-0.5 rounded ml-2 uppercase font-bold shadow-sm">Agendada</span>`;
+
+                let renderCliente = '';
+                if(c.eCorteva) {
+                    renderCliente = `<img src="Corteva_logo.png" alt="Corteva" title="Corteva" class="h-4 inline-block ml-2 align-middle" onerror="this.style.display='none'">`;
+                } else if (c.clienteOriginal) {
+                    renderCliente = `<span class="text-[10px] text-gray-500 ml-2 font-bold uppercase truncate max-w-[80px] inline-block align-middle">${c.clienteOriginal}</span>`;
+                }
+
+                let motLabel = (ehPassada || ehHoje) ? c.motoristaPlacas : `<span class="text-gray-400 text-xs italic">Aguardando...</span>`;
+
+                html += `
+                    <tr class="border-b transition ${cssLinha}">
+                        <td class="p-3 font-medium whitespace-nowrap">${c.dataStr} ${badge} ${renderCliente}</td>
+                        <td class="p-3 font-bold">${c.ship}</td>
+                        <td class="p-3 truncate max-w-[150px]">${c.cidade}</td>
+                        <td class="p-3">${formatNumber(c.qtd)}</td>
+                        <td class="p-3 font-bold ${ehPassada ? 'text-gray-500' : 'text-valorem-green'}">${formatNumber(c.paletes)}</td>
+                        <td class="p-3 truncate max-w-[120px]">${c.transportadora}</td>
+                        <td class="p-3 text-xs whitespace-nowrap">${motLabel}</td>
+                    </tr>`;
+            });
+
+            if(contagemExibida === 0) {
+                html = `<tr><td colspan="7" class="p-4 text-center text-gray-500">Nenhuma expedição agendada para hoje em diante. <br><span class="text-xs">Clique em "Mostrar Cargas Anteriores".</span></td></tr>`;
+            }
+            document.getElementById('table-expedicao').innerHTML = html;
+        }
+
+        function formatNumber(num) {
+            if(isNaN(num) || num === null || num === '') return 0;
+            return Number(num).toLocaleString('pt-BR');
+        }
+
+        function renderChart(labels, data) {
+            const ctx = document.getElementById('chartPaletes').getContext('2d');
+            if(chartPaletesInstance) chartPaletesInstance.destroy();
+            chartPaletesInstance = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: labels, datasets: [{ label: 'Qtd. Paletes', data: data, backgroundColor: '#007336', borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+    </script>
+</body>
+</html>
