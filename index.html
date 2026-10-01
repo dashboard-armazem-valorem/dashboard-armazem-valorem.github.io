@@ -50,7 +50,7 @@
     </nav>
 
     <div id="status-bar" class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-2 text-center text-sm font-semibold shadow-sm transition-all duration-500">
-        🔄 Sincronizando dados com os servidores...
+        🔄 Buscando planilhas no servidor da Valorem...
     </div>
 
     <div class="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
@@ -119,6 +119,7 @@
         let todasAsCargas = [];
         let mostrarPassadas = false;
         let chartPaletesInstance = null;
+        let bloqueioImportacaoManual = false; // Trava de segurança anti-sobrescrita
 
         let globalDispI8_PAS = 0, globalDispI9_PBT = 0; 
         let globalPaletesFatPAS_ContagemLinhas = 0, globalPaletesExpPAS_Futuro = 0; 
@@ -135,41 +136,45 @@
         });
 
         async function autoLoadFiles() {
+            if (bloqueioImportacaoManual) return; // Se o usuário importou manualmente, aborta o script.
+            
             const btnStatus = document.getElementById('status-bar');
             let hasError = false;
+            
+            // Adiciona timestamp para quebrar o cache de 10 min do GitHub Pages
+            const cacheBuster = `?t=${new Date().getTime()}`;
 
             try {
-                const urlEstoque = 'ESTOQUE%20PATOS%20-%20ATUALIZA%C3%87%C3%83O%20DI%C3%81RIA.xlsx';
+                const urlEstoque = 'ESTOQUE%20PATOS%20-%20ATUALIZA%C3%87%C3%83O%20DI%C3%81RIA.xlsx' + cacheBuster;
                 const responseEstoque = await fetch(urlEstoque);
-                if(responseEstoque.ok) {
+                
+                if(responseEstoque.ok && !bloqueioImportacaoManual) {
                     const data = await responseEstoque.arrayBuffer();
                     const workbook = XLSX.read(data, {type: 'array', cellDates: true});
-                    processEstoqueFull(workbook);
-                } else {
-                    console.warn("Estoque não localizado no servidor (HTTP " + responseEstoque.status + ")");
-                    hasError = true;
-                }
-            } catch(e) { hasError = true; console.error(e); }
+                    let s_resumo = workbook.SheetNames.find(s => s.toUpperCase() === 'RESUMO');
+                    if (s_resumo) processEstoqueFull(workbook);
+                } else { hasError = true; }
+            } catch(e) { hasError = true; }
 
             try {
-                const urlExpedicao = 'Padr%C3%A3o%20de%20envio%20de%20email%20de%20expedi%C3%A7%C3%A3o.xlsx';
+                const urlExpedicao = 'Padr%C3%A3o%20de%20envio%20de%20email%20de%20expedi%C3%A7%C3%A3o.xlsx' + cacheBuster;
                 const responseExp = await fetch(urlExpedicao);
-                if(responseExp.ok) {
+                
+                if(responseExp.ok && !bloqueioImportacaoManual) {
                     const data = await responseExp.arrayBuffer();
                     const workbook = XLSX.read(data, {type: 'array', cellDates: true});
                     let sheetName = workbook.SheetNames.find(s => s.toUpperCase() === '_SHIPMENTS');
                     if(sheetName) processExpedicao(workbook.Sheets[sheetName]);
-                } else {
-                    console.warn("Expedição não localizada no servidor (HTTP " + responseExp.status + ")");
-                    hasError = true;
-                }
-            } catch(e) { hasError = true; console.error(e); }
+                } else { hasError = true; }
+            } catch(e) { hasError = true; }
+
+            if(bloqueioImportacaoManual) return; // Se importou no meio do caminho, ignora os alertas abaixo
 
             if(hasError) {
                 btnStatus.classList.replace('bg-blue-100', 'bg-yellow-100');
                 btnStatus.classList.replace('border-blue-500', 'border-yellow-500');
                 btnStatus.classList.replace('text-blue-700', 'text-yellow-700');
-                btnStatus.innerHTML = '⚠️ Alguma planilha não foi encontrada no GitHub. Painel operando com dados parciais.';
+                btnStatus.innerHTML = '⚠️ Planilhas não detectadas no servidor central. O painel deve ser preenchido manualmente.';
             } else {
                 btnStatus.classList.replace('bg-blue-100', 'bg-green-100');
                 btnStatus.classList.replace('border-blue-500', 'border-green-500');
@@ -182,6 +187,9 @@
         window.addEventListener('load', autoLoadFiles);
 
         function loadFileFromInput(e, type) {
+            bloqueioImportacaoManual = true; // Ativa a trava de segurança anti-cache fantasma
+            document.getElementById('status-bar').style.display = 'none'; // Esconde a barra
+
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
@@ -192,6 +200,7 @@
                 else if (type === 'EXPEDICAO') {
                     const sheetName = workbook.SheetNames.find(s => s.toUpperCase() === '_SHIPMENTS');
                     if(sheetName) processExpedicao(workbook.Sheets[sheetName]);
+                    else alert("Aba _Shipments não encontrada nesta planilha.");
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -245,10 +254,7 @@
         function processEstoqueFull(workbook) {
             let sheetFatName = workbook.SheetNames.find(s => s.toUpperCase() === 'FATURAMENTO');
             let sheetItemName = workbook.SheetNames.find(s => s.toUpperCase() === 'ITEM ESTOQUE');
-            
-            // Não zera as variáveis da expedição para manter a persistência entre carregamentos
-            globalPaletesFatPAS_ContagemLinhas = 0; 
-            materiaisPBT_Faturamento = []; 
+            globalPaletesFatPAS_ContagemLinhas = 0; materiaisPBT_Faturamento = []; 
 
             if (sheetFatName && sheetItemName) {
                 let fatData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetFatName], {header: 1});
@@ -296,7 +302,7 @@
             }
 
             let sheetResumoName = workbook.SheetNames.find(s => s.toUpperCase() === 'RESUMO');
-            if(!sheetResumoName) return alert("Aba 'RESUMO' não encontrada.");
+            if(!sheetResumoName) return alert("Aba 'RESUMO' não encontrada na planilha de Estoque.");
             
             let rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetResumoName], {header: 1});
             let kpi = { capacidade: 160000, cargas: 0, dias: 0, ocupacao_total: 0 };
@@ -318,7 +324,6 @@
             rows.forEach((r, idx) => {
                 if(!r || r.length === 0) return;
                 for (let j = 0; j < r.length; j++) {
-                    // Remoção completa de espaços para garantir a busca independente de formatação do Excel
                     let txt = (r[j] || '').toString().toUpperCase().replace(/\s+/g, '');
                     if (txt.includes('DISPONIVELCLIENTE') || txt.includes('DISPONÍVELCLIENTE')) {
                         globalDispI8_PAS = Number(r[j+1]) || 0; 
@@ -388,12 +393,10 @@
         function processExpedicao(rawSheet) {
             const jsonComDatas = XLSX.utils.sheet_to_json(rawSheet, {raw: true, cellDates: true});
             let map = {};
-            
-            globalPaletesExpPAS_Futuro = 0; 
-            materiaisExpedicaoFutura = []; 
+            globalPaletesExpPAS_Futuro = 0; materiaisExpedicaoFutura = []; 
 
-            let proximoDia = new Date(); proximoDia.setHours(0,0,0,0);
-            proximoDia.setDate(proximoDia.getDate() + 1);
+            let dataReferencia = new Date(); dataReferencia.setHours(0,0,0,0);
+            let proximoDia = new Date(dataReferencia); proximoDia.setDate(proximoDia.getDate() + 1);
             
             jsonComDatas.forEach((row) => {
                 let ship = row['Shipment'];
